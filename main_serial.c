@@ -37,6 +37,8 @@ int main (int argc, char* argv[]){
     // initialize variables
     r = malloc(nodecount * sizeof(double));
     r_pre = malloc(nodecount * sizeof(double));
+
+    GET_TIME(start);
     
     iterationcount = 0;
     for ( i = 0; i < nodecount; ++i)
@@ -61,6 +63,8 @@ int main (int argc, char* argv[]){
         }
 
     }while(rel_error(r, r_pre, nodecount) >= EPSILON);
+
+    GET_TIME(end);
 
     Lab4_saveoutput(r, nodecount, end - start);
 
