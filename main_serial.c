@@ -58,13 +58,21 @@ int main (int argc, char* argv[]){
                 int jNodeNum = currnode.inlinks[j];
                 struct node jNode = nodehead[jNodeNum];
                 sum += r_pre[jNodeNum]/jNode.num_out_links;
+
             }
-            r[i] = (1-DAMPING_FACTOR)*(1/nodecount)+DAMPING_FACTOR*sum;
+            r[i] = (1-DAMPING_FACTOR)/nodecount+DAMPING_FACTOR*sum;
+            //printf("%d: %d : %f : %f\n",iterationcount, i, r[i], r_pre[i]);
+
+            
+
+
         }
 
     }while(rel_error(r, r_pre, nodecount) >= EPSILON);
 
     GET_TIME(end);
+
+
 
     Lab4_saveoutput(r, nodecount, end - start);
 
