@@ -1,13 +1,14 @@
-CC = gcc
+CC = mpicc
 CFLAGS = -Wall -Werror -Wvla -ggdb3 -lm
-
 DEPS = timer.h Lab3IO.h
-OBJ = main_serial.o Lab4_IO.o
+OBJ = main.o Lab4_IO.o
 
-
-main_serial: $(OBJ)
+main: $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS)
-all: datagen main_serial
+all: main
+
+main_serial: Lab4_IO.o main_serial.o
+	gcc -o $@ $^ $(CFLAGS)
 
 .PHONY: datatrim
 datatrim:
@@ -16,12 +17,12 @@ datatrim:
 
 .PHONY: memtest
 memtest: main 
-	valgrind -s --track-origins=yes --tool=memcheck --leak-check=yes --show-leak-kinds=all ./main 1
+	valgrind -s --track-origins=yes --tool=memcheck --leak-check=yes --show-leak-kinds=all ./main
 	
 .PHONY: threadtest
 threadtest: main
-	valgrind --tool=helgrind ./main 4
+	valgrind --tool=helgrind ./main
 
 .PHONY: clean
 clean:
-	rm -f *.o main datagen
+	rm -f *.o main datatrim main_serial
