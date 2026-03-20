@@ -47,12 +47,44 @@ int main (int argc, char* argv[]){
         r[i] = 1.0 / nodecount;
     /* INITIALIZE MORE VARIABLES IF NECESSARY */
 
+    //Split up work
+    int sumOfInLinks = 0;
+    for( i = 0; i < nodecount; ++i){
+        sumOfInLinks += nodehead[i].num_in_links;
+    }
+
+    int myRank, commSZ;
+    MPI_Init(NULL, NULL);
+    MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
+    MPI_Comm_size(MPI_COMM_WORLD, &commSZ);
+
+    int InLinksPer = sumOfInLinks / commSZ;
+
+    //Assign which nodes each process will do
+    sumOfInLinks = 0;
+    int nodeStart = 0;
+    int nodeEnd = 0;
+    int segNum = 0;
+    for( i = 0; i < nodecount; ++i){
+        sumOfInLinks += nodehead[i].num_in_links;
+        if(sumOfInLinks > InLinksPer || i == nodecount - 1){
+            nodeStart = nodeEnd;
+            nodeEnd = i;
+            if(segNum == myRank){
+                break;
+            }
+            ++segNum;
+            sumOfInLinks = 0;
+        }
+    }
+
+
     // core calculation
     do{
         ++iterationcount;
         vec_cp(r, r_pre, nodecount);
         /* IMPLEMENT ITERATIVE UPDATE */
-        for( i = 0; i < nodecount; ++i){
+        for( i = nodeStart; i < nodeEnd + 1; ++i){
             struct node currnode = nodehead[i];
             double sum = 0;
             //Find Sum
@@ -64,10 +96,13 @@ int main (int argc, char* argv[]){
             }
             r[i] = (1-DAMPING_FACTOR)/nodecount+DAMPING_FACTOR*sum;
             //printf("%d: %d : %f : %f\n",iterationcount, i, r[i], r_pre[i]);
+        }
 
+        //Sync R now
+        if(myRank != 0){
+            MPI_Send(&r[nodeStart], nodeEnd - nodeStart + 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+        }else{
             
-
-
         }
 
     }while(rel_error(r, r_pre, nodecount) >= EPSILON);
