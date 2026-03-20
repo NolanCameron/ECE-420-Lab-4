@@ -99,13 +99,12 @@ int main (int argc, char* argv[]){
         }
 
         //Sync R now
-        if(myRank != 0){
-            MPI_Send(&r[nodeStart], nodeEnd - nodeStart + 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
-        }else{
-            
-        }
+        MPI_Bcast(&r[nodeStart], nodeEnd - nodeStart + 1, MPI_DOUBLE, myRank, MPI_COMM_WORLD);
+        MPI_Barrier(MPI_COMM_WORLD);
 
     }while(rel_error(r, r_pre, nodecount) >= EPSILON);
+
+    MPI_Finalize();
 
     GET_TIME(end);
 
