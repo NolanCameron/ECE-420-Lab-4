@@ -90,8 +90,10 @@ int main (int argc, char* argv[]){
             //Find Sum
             for (j = 0; j < currnode.num_in_links; ++j){
                 int jNodeNum = currnode.inlinks[j];
-                struct node jNode = nodehead[jNodeNum];
-                sum += r_pre[jNodeNum]/jNode.num_out_links;
+
+                int out_links = nodehead[jNodeNum].num_out_links;
+                //struct node jNode = nodehead[jNodeNum];
+                sum += r_pre[jNodeNum]/out_links;
 
             }
             r[i] = (1-DAMPING_FACTOR)/nodecount+DAMPING_FACTOR*sum;
@@ -99,8 +101,9 @@ int main (int argc, char* argv[]){
         }
 
         //Sync R now
-        MPI_Bcast(&r[nodeStart], nodeEnd - nodeStart + 1, MPI_DOUBLE, myRank, MPI_COMM_WORLD);
-        MPI_Barrier(MPI_COMM_WORLD);
+        //MPI_Bcast(&r[nodeStart], nodeEnd - nodeStart + 1, MPI_DOUBLE, myRank, MPI_COMM_WORLD);
+        MPI_Allgather(&r[nodeStart], nodeEnd - nodeStart + 1, MPI_DOUBLE, r, nodeEnd - nodeStart + 1, MPI_DOUBLE, MPI_COMM_WORLD);
+        //MPI_Barrier(MPI_COMM_WORLD);
 
     }while(rel_error(r, r_pre, nodecount) >= EPSILON);
 
