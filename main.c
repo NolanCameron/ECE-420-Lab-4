@@ -66,6 +66,8 @@ int main (int argc, char* argv[]){
     sumOfInLinks = 0;
     int nodeStart = 0;
     int nodeEnd = -1;
+    int localStart = 0;
+    int localEnd = -1;
     int segNum = 0;
     int* displs = malloc(sizeof(int)*commSZ);
     int* counts = malloc(sizeof(int)*commSZ);
@@ -74,27 +76,32 @@ int main (int argc, char* argv[]){
 
         if(sumOfInLinks >= InLinksPer || i == nodecount - 1){
 
-            nodeStart = nodeEnd + 1;
-            nodeEnd = i;
-            displs[segNum] = nodeStart;
-            counts[segNum] = nodeEnd - nodeStart + 1;
+            localStart = localEnd + 1;
+            localEnd = i;
+            displs[segNum] = localStart;
+            counts[segNum] = localEnd - localStart + 1;
 
-            printf("displs counts myRank - %d %d %d\n",displs[myRank],counts[myRank],myRank);
-            printf("%d %d\n",nodeStart,nodeEnd);
+            
+            //printf("%d %d\n",localStart,localEnd);
             if(segNum == myRank){
-                break;
+                nodeEnd = localEnd;
+                nodeStart = localStart;
             }
             
             ++segNum;
             sumOfInLinks = 0;
 
         }
+        
         //printf("%d\n",sumOfInLinks);
     }
+
+    //printf("displs counts myRank - %d %d %d\n",displs[myRank],counts[myRank],myRank);
 
 
     // core calculation
     //double* rbuff = malloc(sizeof(double)*nodecount);
+    MPI_Barrier(MPI_COMM_WORLD);
     do{
         ++iterationcount;
         vec_cp(r, r_pre, nodecount);
@@ -124,9 +131,9 @@ int main (int argc, char* argv[]){
         //printf("%d\n",num);
         //MPI_Allgather(&r[nodeStart], num, MPI_DOUBLE, r, num, MPI_DOUBLE, MPI_COMM_WORLD);
         //if (myRank == 0) printf("doing");
-        printf("displs counts myRank - %d %d %d\n",displs[myRank],counts[myRank],myRank);
+        //printf("displs counts myRank - %d %d %d\n",displs[myRank],counts[myRank],myRank);
         MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, r, counts,displs, MPI_DOUBLE, MPI_COMM_WORLD);
-        if (myRank == 0) printf("done");
+        //if (myRank == 0) printf("done");
         //MPI_Barrier(MPI_COMM_WORLD);
 
     }while(rel_error(r, r_pre, nodecount) >= EPSILON);
@@ -141,6 +148,6 @@ int main (int argc, char* argv[]){
 
     // post processing
     node_destroy(nodehead, nodecount);
-    free(r); free(r_pre); free(displs);
+    free(r); free(r_pre); free(displs); free(counts);
     return 0;
 }
