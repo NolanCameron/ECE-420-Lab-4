@@ -40,7 +40,6 @@ int main (int argc, char* argv[]){
     r = malloc(nodecount * sizeof(double));
     r_pre = malloc(nodecount * sizeof(double));
 
-    GET_TIME(start);
     
     iterationcount = 0;
     for ( i = 0; i < nodecount; ++i)
@@ -52,6 +51,8 @@ int main (int argc, char* argv[]){
     for( i = 0; i < nodecount; ++i){
         sumOfInLinks += nodehead[i].num_in_links;
     }
+
+    GET_TIME(start);
 
     int myRank, commSZ;
     MPI_Init(NULL, NULL);
@@ -101,25 +102,25 @@ int main (int argc, char* argv[]){
 
     // core calculation
     //double* rbuff = malloc(sizeof(double)*nodecount);
-    MPI_Barrier(MPI_COMM_WORLD);
+    float damping = (1-DAMPING_FACTOR)/nodecount;
     do{
         ++iterationcount;
         vec_cp(r, r_pre, nodecount);
         /* IMPLEMENT ITERATIVE UPDATE */
         for( i = nodeStart; i < nodeEnd + 1; ++i){
             //printf("%d\n",i);
-            struct node currnode = nodehead[i];
+            struct node* currnode = &nodehead[i];
             double sum = 0;
             //Find Sum
-            for (j = 0; j < currnode.num_in_links; ++j){
-                int jNodeNum = currnode.inlinks[j];
+            for (j = 0; j < currnode->num_in_links; ++j){
+                int jNodeNum = currnode->inlinks[j];
 
                 int out_links = nodehead[jNodeNum].num_out_links;
                 //struct node jNode = nodehead[jNodeNum];
                 sum += r_pre[jNodeNum]/out_links;
 
             }
-            r[i] = (1-DAMPING_FACTOR)/nodecount+DAMPING_FACTOR*sum;
+            r[i] = damping+DAMPING_FACTOR*sum;
             
             //printf("%d: %d : %f : %f\n",iterationcount, i, r[i], r_pre[i]);
         }
