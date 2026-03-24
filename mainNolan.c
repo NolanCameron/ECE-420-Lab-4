@@ -97,21 +97,33 @@ int main (int argc, char* argv[]){
         //printf("%d\n",sumOfInLinks);
     }
 
+    //Set up evenly distrubited counts and displs
+    int* displsEven = malloc(sizeof(int)*commSZ);
+    int* countsEven = malloc(sizeof(int)*commSZ);
+    for (i = 0; i < commSZ; ++i){
+        countsEven[i] = nodecount/commSZ + i <= nodecount%commSZ ? 1 : 0;
+        displsEven[i] = i == 0 ? 0 : countsEven[i-1] + displs[i-1];
+
+    } 
+
     //printf("displs counts myRank - %d %d %d\n",displs[myRank],counts[myRank],myRank);
 
 
     // core calculation
     //double* rbuff = malloc(sizeof(double)*nodecount);
-    float damping = (1-DAMPING_FACTOR)/nodecount;
+    double damping = (1-DAMPING_FACTOR)/nodecount;
+    double* rOutNorm = malloc(nodecount * sizeof(double));
     do{
         ++iterationcount;
         vec_cp(r, r_pre, nodecount);
         /* IMPLEMENT ITERATIVE UPDATE */
 
         //First Calculate all r_pre/out_going_edge for all r_pre
-        for (i = nodecount/commSZ*myRank; i < nodecount/commSZ*(myRank + 1); i++){
-            
+        for (i = displsEven[myRank]; i < displsEven[myRank] + countsEven[myRank] ; i++){
+            rOutNorm[i] = r_pre[i]/nodehead[i].num_out_links;
         }
+
+        MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, rOutNorm, countsEven, displsEven, MPI_DOUBLE, MPI_COMM_WORLD);
 
         for( i = nodeStart; i < nodeEnd + 1; ++i){
             //printf("%d\n",i);
@@ -120,10 +132,7 @@ int main (int argc, char* argv[]){
             //Find Sum
             for (j = 0; j < currnode->num_in_links; ++j){
                 int jNodeNum = currnode->inlinks[j];
-
-                int out_links = nodehead[jNodeNum].num_out_links;
-                //struct node jNode = nodehead[jNodeNum];
-                sum += r_pre[jNodeNum]/out_links;
+                sum += rOutNorm[jNodeNum];
 
             }
             r[i] = damping+DAMPING_FACTOR*sum;
@@ -155,6 +164,7 @@ int main (int argc, char* argv[]){
 
     // post processing
     node_destroy(nodehead, nodecount);
-    free(r); free(r_pre); free(displs); free(counts);
+    free(r); free(r_pre); free(displs); free(counts); free(rOutNorm);
+    free(displsEven); free(countsEven);
     return 0;
 }

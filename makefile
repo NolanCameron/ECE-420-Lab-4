@@ -7,6 +7,7 @@ main: $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS)
 all: main
 
+
 main_serial: Lab4_IO.o main_serial.o
 	gcc -o $@ $^ $(CFLAGS)
 
