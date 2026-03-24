@@ -101,9 +101,8 @@ int main (int argc, char* argv[]){
     int* displsEven = malloc(sizeof(int)*commSZ);
     int* countsEven = malloc(sizeof(int)*commSZ);
     for (i = 0; i < commSZ; ++i){
-        countsEven[i] = nodecount/commSZ + i <= nodecount%commSZ ? 1 : 0;
-        displsEven[i] = i == 0 ? 0 : countsEven[i-1] + displs[i-1];
-
+        countsEven[i] = nodecount/commSZ + (nodecount%commSZ>0 ? (i <= nodecount%commSZ ? 1 : 0) : 0);
+        displsEven[i] = (i == 0 ? 0 : countsEven[i-1]) + displs[i-1];
     } 
 
     //printf("displs counts myRank - %d %d %d\n",displs[myRank],counts[myRank],myRank);
@@ -119,7 +118,7 @@ int main (int argc, char* argv[]){
         /* IMPLEMENT ITERATIVE UPDATE */
 
         //First Calculate all r_pre/out_going_edge for all r_pre
-        for (i = displsEven[myRank]; i < displsEven[myRank] + countsEven[myRank] ; i++){
+        for (i = displsEven[myRank]; i < displsEven[myRank] + countsEven[myRank] ; ++i){
             rOutNorm[i] = r_pre[i]/nodehead[i].num_out_links;
         }
 
@@ -133,7 +132,6 @@ int main (int argc, char* argv[]){
             for (j = 0; j < currnode->num_in_links; ++j){
                 int jNodeNum = currnode->inlinks[j];
                 sum += rOutNorm[jNodeNum];
-
             }
             r[i] = damping+DAMPING_FACTOR*sum;
             
