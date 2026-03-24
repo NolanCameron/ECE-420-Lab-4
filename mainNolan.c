@@ -112,6 +112,7 @@ int main (int argc, char* argv[]){
     //double* rbuff = malloc(sizeof(double)*nodecount);
     double damping = (1-DAMPING_FACTOR)/nodecount;
     double* rOutNorm = malloc(nodecount * sizeof(double));
+    GET_TIME(start);
     do{
         ++iterationcount;
         vec_cp(r, r_pre, nodecount);
