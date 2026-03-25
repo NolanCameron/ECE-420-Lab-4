@@ -119,13 +119,18 @@ int main (int argc, char* argv[]){
         /* IMPLEMENT ITERATIVE UPDATE */
 
         //First Calculate all r_pre/out_going_edge for all r_pre
+        GET_TIME(start);
         for (i = displsEven[myRank]; i < displsEven[myRank] + countsEven[myRank] ; ++i){
             rOutNorm[i] = r_pre[i]/nodehead[i].num_out_links;
         }
+        GET_TIME(end);
+
+        
 
         MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, rOutNorm, countsEven, displsEven, MPI_DOUBLE, MPI_COMM_WORLD);
 
-        for( i = nodeStart; i < nodeEnd + 1; ++i){
+        GET_TIME(start);
+        for(i = displsEven[myRank]; i < displsEven[myRank] + countsEven[myRank] ; ++i){
             //printf("%d\n",i);
             struct node* currnode = &nodehead[i];
             double sum = 0;
@@ -138,6 +143,11 @@ int main (int argc, char* argv[]){
             
             //printf("%d: %d : %f : %f\n",iterationcount, i, r[i], r_pre[i]);
         }
+        GET_TIME(end);
+
+        // printf("%d : %d\n", myRank, nodeEnd - nodeStart);
+        // printf("%d : %d\n", myRank, nodeEnd - nodeStart);
+        printf("%d : %lf\n", myRank, end - start);
         
 
         //Sync R now
@@ -147,11 +157,14 @@ int main (int argc, char* argv[]){
         //MPI_Allgather(&r[nodeStart], num, MPI_DOUBLE, r, num, MPI_DOUBLE, MPI_COMM_WORLD);
         //if (myRank == 0) printf("doing");
         //printf("displs counts myRank - %d %d %d\n",displs[myRank],counts[myRank],myRank);
-        MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, r, counts,displs, MPI_DOUBLE, MPI_COMM_WORLD);
+        MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, r, countsEven, displsEven, MPI_DOUBLE, MPI_COMM_WORLD);
         //if (myRank == 0) printf("done");
         //MPI_Barrier(MPI_COMM_WORLD);
 
     }while(rel_error(r, r_pre, nodecount) >= EPSILON);
+
+    nodeStart = nodeEnd;
+    nodeEnd = nodeStart;
 
     free(displs); free(counts); free(rOutNorm);
     free(displsEven); free(countsEven);
