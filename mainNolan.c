@@ -39,7 +39,6 @@ int main (int argc, char* argv[]){
     // initialize variables
     r = malloc(nodecount * sizeof(double));
     r_pre = malloc(nodecount * sizeof(double));
-
     
     for ( i = 0; i < nodecount; ++i)
         r[i] = 1.0 / nodecount;
@@ -58,6 +57,12 @@ int main (int argc, char* argv[]){
     MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
     MPI_Comm_size(MPI_COMM_WORLD, &commSZ);
 
+    int* displs = malloc(sizeof(int)*commSZ);
+    int* counts = malloc(sizeof(int)*commSZ);
+    int* displsEven = malloc(sizeof(int)*commSZ);
+    int* countsEven = malloc(sizeof(int)*commSZ);
+    double* rOutNorm = malloc(nodecount * sizeof(double));
+
     int InLinksPer = sumOfInLinks / commSZ;
     // printf("%d\n",InLinksPer);
     // printf("%d\n",nodecount);
@@ -69,8 +74,6 @@ int main (int argc, char* argv[]){
     int localStart = 0;
     int localEnd = -1;
     int segNum = 0;
-    int* displs = malloc(sizeof(int)*commSZ);
-    int* counts = malloc(sizeof(int)*commSZ);
     for( i = 0; i < nodecount; ++i){
         sumOfInLinks += nodehead[i].num_in_links;
 
@@ -97,11 +100,10 @@ int main (int argc, char* argv[]){
     }
 
     //Set up evenly distrubited counts and displs
-    int* displsEven = malloc(sizeof(int)*commSZ);
-    int* countsEven = malloc(sizeof(int)*commSZ);
+
     for (i = 0; i < commSZ; ++i){
-        countsEven[i] = nodecount/commSZ + (nodecount%commSZ>0 ? (i <= nodecount%commSZ ? 1 : 0) : 0);
-        displsEven[i] = (i == 0 ? 0 : countsEven[i-1]) + displs[i-1];
+        countsEven[i] = nodecount/commSZ + (nodecount%commSZ>0 ? (i < nodecount%commSZ ? 1 : 0) : 0);
+        displsEven[i] = (i == 0 ? 0 : countsEven[i-1] + displsEven[i-1]);
     } 
 
     //printf("displs counts myRank - %d %d %d\n",displs[myRank],counts[myRank],myRank);
@@ -110,7 +112,6 @@ int main (int argc, char* argv[]){
     // core calculation
     //double* rbuff = malloc(sizeof(double)*nodecount);
     double damping = (1-DAMPING_FACTOR)/nodecount;
-    double* rOutNorm = malloc(nodecount * sizeof(double));
     GET_TIME(start);
     //vec_cp(r, r_pre, nodecount);
     do{
@@ -152,6 +153,9 @@ int main (int argc, char* argv[]){
 
     }while(rel_error(r, r_pre, nodecount) >= EPSILON);
 
+    free(displs); free(counts); free(rOutNorm);
+    free(displsEven); free(countsEven);
+
     MPI_Finalize();
 
     GET_TIME(end);
@@ -162,7 +166,6 @@ int main (int argc, char* argv[]){
 
     // post processing
     node_destroy(nodehead, nodecount);
-    free(r); free(r_pre); free(displs); free(counts); free(rOutNorm);
-    free(displsEven); free(countsEven);
+    free(r); free(r_pre); 
     return 0;
 }
