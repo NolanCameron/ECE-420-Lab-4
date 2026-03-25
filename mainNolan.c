@@ -21,7 +21,7 @@ int main (int argc, char* argv[]){
     int nodecount;
     double *r, *r_pre;
     int i, j;
-    int iterationcount;
+    //int iterationcount;
     double start, end;
     FILE *ip;
     /* INSTANTIATE MORE VARIABLES IF NECESSARY */
@@ -41,7 +41,6 @@ int main (int argc, char* argv[]){
     r_pre = malloc(nodecount * sizeof(double));
 
     
-    iterationcount = 0;
     for ( i = 0; i < nodecount; ++i)
         r[i] = 1.0 / nodecount;
     /* INITIALIZE MORE VARIABLES IF NECESSARY */
@@ -113,8 +112,8 @@ int main (int argc, char* argv[]){
     double damping = (1-DAMPING_FACTOR)/nodecount;
     double* rOutNorm = malloc(nodecount * sizeof(double));
     GET_TIME(start);
+    //vec_cp(r, r_pre, nodecount);
     do{
-        ++iterationcount;
         vec_cp(r, r_pre, nodecount);
         /* IMPLEMENT ITERATIVE UPDATE */
 
