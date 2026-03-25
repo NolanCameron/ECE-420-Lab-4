@@ -15,6 +15,16 @@
 #define EPSILON 0.00001
 #define DAMPING_FACTOR 0.85
 
+double error_sum(double *r, double *t, int size){
+    int i;
+    double norm_diff = 0, norm_vec = 0;
+    for (i = 0; i < size; ++i){
+        norm_diff += (r[i] - t[i]) * (r[i] - t[i]);
+        norm_vec += t[i] * t[i];
+    }
+    return sqrt(norm_diff/norm_vec);
+}
+
 int main (int argc, char* argv[]){
     // instantiate variables
     struct node *nodehead;
