@@ -1,7 +1,3 @@
-/*
-    Serial Implementation of Lab 4
-*/
-
 #define LAB4_EXTEND
 
 #include <stdio.h>
@@ -15,6 +11,16 @@
 #define EPSILON 0.00001
 #define DAMPING_FACTOR 0.85
 #define DAMPING_WORK 2
+
+double sum_error(double *r, double *t, int size){
+    int i;
+    double norm_diff = 0, norm_vec = 0;
+    for (i = 0; i < size; ++i){
+        norm_diff += (r[i] - t[i]) * (r[i] - t[i]);
+        norm_vec += t[i] * t[i];
+    }
+    return norm_diff/norm_vec;
+}
 
 int main (int argc, char* argv[]){
     // instantiate variables
@@ -115,6 +121,8 @@ int main (int argc, char* argv[]){
     double damping = (1-DAMPING_FACTOR)/nodecount;
     MPI_Barrier(MPI_COMM_WORLD);
     GET_TIME(start);
+    double relSumError;
+    double relError;
     //vec_cp(r, r_pre, nodecount);
     do{
         //vec_cp(r, r_pre, nodecount);
@@ -156,11 +164,14 @@ int main (int argc, char* argv[]){
         //MPI_Allgather(&r[nodeStart], num, MPI_DOUBLE, r, num, MPI_DOUBLE, MPI_COMM_WORLD);
         //if (myRank == 0) printf("doing");
         //printf("displs counts myRank - %d %d %d\n",displs[myRank],counts[myRank],myRank);
+        relSumError = sum_error(&r[displs[myRank]], &r_pre[displs[myRank]], counts[myRank]);
+        MPI_Allreduce(&relSumError, &relError, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, r, counts, displs, MPI_DOUBLE, MPI_COMM_WORLD);
         //if (myRank == 0) printf("done");
         //MPI_Barrier(MPI_COMM_WORLD);
+        relError = sqrt(relError);
 
-    }while(rel_error(r, r_pre, nodecount) >= EPSILON);
+    }while(relError >= EPSILON);
 
     nodeStart = nodeEnd;
     nodeEnd = nodeStart;
