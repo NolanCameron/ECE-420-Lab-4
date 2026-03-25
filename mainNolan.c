@@ -46,6 +46,7 @@ int main (int argc, char* argv[]){
     // initialize variables
     r = malloc(nodecount * sizeof(double));
     r_pre = malloc(nodecount * sizeof(double));
+    double* rOutNorm = malloc(nodecount * sizeof(double));
     
     for ( i = 0; i < nodecount; ++i)
         r[i] = 1.0 / nodecount;
@@ -67,7 +68,6 @@ int main (int argc, char* argv[]){
     int* counts = malloc(sizeof(int)*commSZ);
     int* displsEven = malloc(sizeof(int)*commSZ);
     int* countsEven = malloc(sizeof(int)*commSZ);
-    double* rOutNorm = malloc(nodecount * sizeof(double));
 
     int workPer = sumOfWork / commSZ;
     // printf("%d\n",InLinksPer);
