@@ -1,7 +1,3 @@
-/*
-    Serial Implementation of Lab 4
-*/
-
 #define LAB4_EXTEND
 
 #include <stdio.h>
@@ -14,6 +10,17 @@
 
 #define EPSILON 0.00001
 #define DAMPING_FACTOR 0.85
+#define DAMPING_WORK 2
+
+double sum_error(double *r, double *t, int size){
+    int i;
+    double norm_diff = 0, norm_vec = 0;
+    for (i = 0; i < size; ++i){
+        norm_diff += (r[i] - t[i]) * (r[i] - t[i]);
+        norm_vec += t[i] * t[i];
+    }
+    return norm_diff/norm_vec;
+}
 
 int main (int argc, char* argv[]){
     // instantiate variables
@@ -21,7 +28,7 @@ int main (int argc, char* argv[]){
     int nodecount;
     double *r, *r_pre;
     int i, j;
-    int iterationcount;
+    //int iterationcount;
     double start, end;
     FILE *ip;
     /* INSTANTIATE MORE VARIABLES IF NECESSARY */
@@ -39,43 +46,45 @@ int main (int argc, char* argv[]){
     // initialize variables
     r = malloc(nodecount * sizeof(double));
     r_pre = malloc(nodecount * sizeof(double));
-
+    double* rOutNorm = malloc(nodecount * sizeof(double));
     
-    iterationcount = 0;
     for ( i = 0; i < nodecount; ++i)
         r[i] = 1.0 / nodecount;
     /* INITIALIZE MORE VARIABLES IF NECESSARY */
 
     //Split up work
-    int sumOfInLinks = 0;
+    int sumOfWork = 0;
     for( i = 0; i < nodecount; ++i){
-        sumOfInLinks += nodehead[i].num_in_links;
+        sumOfWork += nodehead[i].num_in_links;
+        sumOfWork += DAMPING_WORK;
     }
-
-    GET_TIME(start);
 
     int myRank, commSZ;
     MPI_Init(NULL, NULL);
     MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
     MPI_Comm_size(MPI_COMM_WORLD, &commSZ);
 
-    int InLinksPer = sumOfInLinks / commSZ;
+    int* displs = malloc(sizeof(int)*commSZ);
+    int* counts = malloc(sizeof(int)*commSZ);
+    int* displsEven = malloc(sizeof(int)*commSZ);
+    int* countsEven = malloc(sizeof(int)*commSZ);
+
+    int workPer = sumOfWork / commSZ;
     // printf("%d\n",InLinksPer);
     // printf("%d\n",nodecount);
     
     //Assign which nodes each process will do
-    sumOfInLinks = 0;
+    sumOfWork = 0;
     int nodeStart = 0;
     int nodeEnd = -1;
     int localStart = 0;
     int localEnd = -1;
     int segNum = 0;
-    int* displs = malloc(sizeof(int)*commSZ);
-    int* counts = malloc(sizeof(int)*commSZ);
     for( i = 0; i < nodecount; ++i){
-        sumOfInLinks += nodehead[i].num_in_links;
+        sumOfWork += nodehead[i].num_in_links;
+        sumOfWork += DAMPING_WORK;
 
-        if(sumOfInLinks >= InLinksPer || i == nodecount - 1){
+        if(sumOfWork >= workPer || i == nodecount - 1){
 
             localStart = localEnd + 1;
             localEnd = i;
@@ -90,46 +99,62 @@ int main (int argc, char* argv[]){
             }
             
             ++segNum;
-            sumOfInLinks = 0;
+            sumOfWork = 0;
 
         }
         
         //printf("%d\n",sumOfInLinks);
     }
 
+    //Set up evenly distrubited counts and displs
+
+    for (i = 0; i < commSZ; ++i){
+        countsEven[i] = nodecount/commSZ + (nodecount%commSZ>0 ? (i < nodecount%commSZ ? 1 : 0) : 0);
+        displsEven[i] = (i == 0 ? 0 : countsEven[i-1] + displsEven[i-1]);
+    } 
+
     //printf("displs counts myRank - %d %d %d\n",displs[myRank],counts[myRank],myRank);
 
 
     // core calculation
     //double* rbuff = malloc(sizeof(double)*nodecount);
-    float damping = (1-DAMPING_FACTOR)/nodecount;
+    double damping = (1-DAMPING_FACTOR)/nodecount;
+    MPI_Barrier(MPI_COMM_WORLD);
+    GET_TIME(start);
+    double relSumError;
+    double relError;
+    //vec_cp(r, r_pre, nodecount);
     do{
-        ++iterationcount;
-        vec_cp(r, r_pre, nodecount);
+        //vec_cp(r, r_pre, nodecount);
         /* IMPLEMENT ITERATIVE UPDATE */
 
         //First Calculate all r_pre/out_going_edge for all r_pre
-        for (i = nodecount/commSZ*myRank; i < nodecount/commSZ*(myRank + 1); i++){
-            
+        for (i = displsEven[myRank]; i < displsEven[myRank] + countsEven[myRank] ; ++i){
+            r_pre[i] = r[i];
+            rOutNorm[i] = r_pre[i]/nodehead[i].num_out_links;
         }
+        
+        MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, r_pre, countsEven, displsEven, MPI_DOUBLE, MPI_COMM_WORLD);
+        MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, rOutNorm, countsEven, displsEven, MPI_DOUBLE, MPI_COMM_WORLD);
 
-        for( i = nodeStart; i < nodeEnd + 1; ++i){
+        //GET_TIME(start);
+        for(i = displs[myRank]; i < displs[myRank] + counts[myRank] ; ++i){
             //printf("%d\n",i);
             struct node* currnode = &nodehead[i];
             double sum = 0;
             //Find Sum
             for (j = 0; j < currnode->num_in_links; ++j){
                 int jNodeNum = currnode->inlinks[j];
-
-                int out_links = nodehead[jNodeNum].num_out_links;
-                //struct node jNode = nodehead[jNodeNum];
-                sum += r_pre[jNodeNum]/out_links;
-
+                sum += rOutNorm[jNodeNum];
             }
             r[i] = damping+DAMPING_FACTOR*sum;
             
             //printf("%d: %d : %f : %f\n",iterationcount, i, r[i], r_pre[i]);
         }
+        //GET_TIME(end);
+        // printf("%d : %d\n", myRank, nodeEnd - nodeStart);
+        // printf("%d : %d\n", myRank, nodeEnd - nodeStart);
+        //printf("%d : %lf\n", myRank, end - start);
         
 
         //Sync R now
@@ -139,11 +164,20 @@ int main (int argc, char* argv[]){
         //MPI_Allgather(&r[nodeStart], num, MPI_DOUBLE, r, num, MPI_DOUBLE, MPI_COMM_WORLD);
         //if (myRank == 0) printf("doing");
         //printf("displs counts myRank - %d %d %d\n",displs[myRank],counts[myRank],myRank);
-        MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, r, counts,displs, MPI_DOUBLE, MPI_COMM_WORLD);
+        relSumError = sum_error(&r[displs[myRank]], &r_pre[displs[myRank]], counts[myRank]);
+        MPI_Allreduce(&relSumError, &relError, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allgatherv(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, r, counts, displs, MPI_DOUBLE, MPI_COMM_WORLD);
         //if (myRank == 0) printf("done");
         //MPI_Barrier(MPI_COMM_WORLD);
+        relError = sqrt(relError);
 
-    }while(rel_error(r, r_pre, nodecount) >= EPSILON);
+    }while(relError >= EPSILON);
+
+    nodeStart = nodeEnd;
+    nodeEnd = nodeStart;
+
+    free(displs); free(counts); free(rOutNorm);
+    free(displsEven); free(countsEven);
 
     MPI_Finalize();
 
@@ -155,6 +189,6 @@ int main (int argc, char* argv[]){
 
     // post processing
     node_destroy(nodehead, nodecount);
-    free(r); free(r_pre); free(displs); free(counts);
+    free(r); free(r_pre); 
     return 0;
 }

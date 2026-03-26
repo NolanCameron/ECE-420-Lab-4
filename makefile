@@ -1,7 +1,7 @@
 CC = mpicc
 CFLAGS = -Wall -Werror -Wvla -ggdb3 -lm -g
 DEPS = timer.h Lab3IO.h
-OBJ = mainNolan.o Lab4_IO.o
+OBJ = main.o Lab4_IO.o
 
 main: $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS)
